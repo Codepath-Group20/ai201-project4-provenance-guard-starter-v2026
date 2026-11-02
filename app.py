@@ -155,7 +155,7 @@ def health():
 def submit():
     """
     Take a piece of text, decide about it, log the decision, answer.
-    Milestone 3 implementation with Signal 1 and audit logging.
+    Milestone 4 implementation: Dual signals (GPT-2 model + stylometry) combined.
     """
     payload = request.get_json(silent=True)
     
@@ -180,17 +180,24 @@ def submit():
     # Generate a unique content ID for tracking and appeal purposes
     content_id = str(uuid.uuid4())
 
-    # Run Signal 1 (GPT-2 perplexity-based model signal)
+    # Import signals and scoring mechanisms
     import detector
+    import stylometry
+    import scoring
+
+    # Compute both signals
     model_score = detector.model_signal(text)
+    style_score = stylometry.style_signal(text)
 
-    # Temporary placeholders for Milestone 3 (Milestones 4 & 5 add style score, confidence, and label)
-    style_score = 0.0
-    confidence = 0.0
+    # Combine signals into a single score
+    combined_score = scoring.combine_signals(model_score, style_score)
+
+    # Temporary placeholders for Milestone 4 (Milestone 5 adds final score_to_label mapping)
+    confidence = 0.5
     label = "pending"
-    guess = "human"
+    guess = "ai" if combined_score >= 0.5 else "human"
 
-    # Log the decision to audit.jsonl using the provided audit module
+    # Log the decision with both individual signal scores and the combined score
     audit.log_decision(
         content_id=content_id,
         creator_id=creator_id,
@@ -198,6 +205,7 @@ def submit():
         guess=guess,
         model_score=model_score,
         style_score=style_score,
+        combined_score=combined_score,
         confidence=confidence,
         label=label,
         status="logged"
@@ -209,7 +217,8 @@ def submit():
         "confidence": confidence,
         "label": label,
         "model_score": model_score,
-        "style_score": style_score
+        "style_score": style_score,
+        "combined_score": combined_score
     }), 200
 
 
