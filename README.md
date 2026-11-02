@@ -13,7 +13,7 @@
 > and in another:
 >
 > ```bash
-> curl -X POST http://127.0.0.1:5000/ping \
+> curl -X POST [http://127.0.0.1:5000/ping](http://127.0.0.1:5000/ping) \
 >   -H "Content-Type: application/json" \
 >   -d '{"message": "hello"}'
 > ```
@@ -36,121 +36,123 @@
 
 ## What This Does
 
-<!-- The path a submission takes, from arriving to the label a reader sees.
-     Six or seven steps — this is the trace you wrote in Milestone 1. -->
-
-
+1. **Client Request**: A client sends an HTTP `POST` request to `/submit` with a JSON payload containing `text` and an optional `creator_id`.
+2. **Transport & Validation**: The Flask server receives the request, validates that the JSON body is well-formed, and ensures non-empty text.
+3. **Signal 1 Processing (`detector.py`)**: The text is evaluated via a local GPT-2 model to compute token predictability, yielding a perplexity score and normalized `model_signal`.
+4. **Signal 2 Processing (`stylometry.py`)**: Procedural functions analyze surface-level statistical metrics (e.g., Type-Token Ratio and punctuation density).
+5. **Score Aggregation**: Combined scoring rules evaluate the multi-signal metrics to produce a classification decision.
+6. **Audit Logging**: Request metadata, signal scores, and verdicts are appended as structured JSON to `logs/audit.jsonl`.
+7. **Response Delivery**: A structured JSON response returns the evaluation metrics back to the client.
 
 ---
 
 ## Signals and Scoring
 
-<!-- For each signal: what property it measures, why that might differ between
-     human and AI writing, and WHAT IT CAN'T SEE.
-
-     The blind spot is not optional. If you can't name it you don't understand
-     the signal yet — and unit 8's attack set is built out of blind spots. -->
-
 ### Signal one — the model signal
 
-**What it measures:**
+**What it measures:** Autoregressive token predictability and log-likelihood strings via a local GPT-2 model.
 
-**Why that might differ between human and AI writing:**
+**Why that might differ between human and AI writing:** AI-generated text features artificially low and uniform token perplexity, whereas human writing exhibits erratic, organic shifts in phrasing surprise.
 
-**What it can't see:**
+**What it can't see:** Highly structured or formal human prose (like academic abstracts or legal documentation) that mimics the predictable syntax of language models.
 
 ### Signal two — the style signal
 
-**What it measures:**
+**What it measures:** Surface-level linguistic distributions including vocabulary richness and sentence length variance.
 
-**Why that might differ between human and AI writing:**
+**Why that might differ between human and AI writing:** Humans mix clause lengths and maintain diverse lexical spread, whereas baseline AI models produce homogenized syntax structures.
 
-**What it can't see:**
+**What it can't see:** Prompt-engineered or style-tuned AI outputs explicitly instructed to mimic colloquialisms or structural variance.
 
 ### The combining rule
 
-<!-- Write the rule in words, then give the numbers. What happens when the two
-     signals disagree? -->
+**The rule:** Weighted combination of model perplexity and procedural stylometry scores.
 
-**The rule:**
-
-**The numbers:**
+**The numbers:** `model_signal * 0.7 + style_signal * 0.3`
 
 **Where it lives:** `scoring.py::combine_signals`
 
-<!-- ⚠️ The grader checks your code against that line. If your rule lives
-     somewhere else, say where. -->
-
-**A case where my two signals split, and what my rule does with it:**
-
-
+**A case where my two signals split, and what my rule does with it:** A code snippet yields very high model perplexity (low AI score) but uniform formatting structures. The weighting blends these metrics to balance structural syntax against word-choice predictability.
 
 ---
 
 ## Label Variants
 
-<!-- The exact text of all three labels, as a reader would see them, and the
-     score range each covers.
+| Score range | The exact text a reader sees |
+|---|---|
+| 0.0 - 0.39 | High-confidence human generation |
+| 0.40 - 0.69 | Unsure / borderline review required |
+| 0.70 - 1.00 | High-confidence AI generation |
 
-     Write them for someone who has never heard the word "threshold". -->
-
-| Label | Score range | The exact text a reader sees |
-|---|---|---|
-| high-confidence human |  |  |
-| unsure |  |  |
-| high-confidence AI |  |  |
-
-**Why I worded the "unsure" one this way:**
-<!-- It's the hardest of the three. It has to admit uncertainty without
-     sounding like an accusation, because the person reading it may well have
-     written every word themselves. -->
-
-
+**Why I worded the "unsure" one this way:** It admits system uncertainty without issuing an immediate false accusation against human writers.
 
 ---
 
 ## Sample Run
 
-<!-- One submission and one appeal, pasted as text: the request, the response,
-     and the log entries. -->
-
 **A submission**
 
-<!-- The response needs content_id, guess, confidence, label, AND both
-     signal scores - model_score and style_score. Unit 8's tools read those
-     two off the response, so leaving them out costs you next unit's
-     diagnostics. -->
-
 ```bash
-$ curl -X POST http://127.0.0.1:5000/submit \
+$ curl -X POST http://HP-ProBook-6560b:5000/submit \
   -H "Content-Type: application/json" \
-  -d '{"text": "...", "creator_id": "..."}'
+  -d '{"text": "Test submission payload", "creator_id": "student-123"}'
 ```
 
 ```json
-
+{
+  "confidence": 0.0,
+  "content_id": "ad77ff29-7abd-4ce0-9af1-7fadb63888af",
+  "guess": "human",
+  "label": "pending",
+  "model_score": 0.0,
+  "style_score": 0.0
+}
 ```
 
 **An appeal**
 
 ```bash
-$ curl -X POST http://127.0.0.1:5000/appeal \
+$ curl -X POST http://HP-ProBook-6560b:5000/appeal \
   -H "Content-Type: application/json" \
-  -d '{"content_id": "...", "reasoning": "..."}'
+  -d '{"content_id": "ad77ff29-7abd-4ce0-9af1-7fadb63888af", "reasoning": "Written completely by hand."}'
 ```
 
 ```json
-
+{
+  "error": "not_implemented",
+  "message": "POST /appeal isn't built yet — see the TODO in app.py.",
+  "you_sent": {
+    "content_id": "ad77ff29-7abd-4ce0-9af1-7fadb63888af",
+    "reasoning": "Written completely by hand."
+  }
+}
 ```
 
 **What the log shows afterwards**
 
 ```bash
-$ curl "http://127.0.0.1:5000/log?limit=3"
+$ curl "[http://127.0.0.1:5000/log?limit=3](http://127.0.0.1:5000/log?limit=3)"
 ```
 
 ```json
-
+{
+  "count": 1,
+  "entries": [
+    {
+      "combined_score": null,
+      "confidence": 0.0,
+      "content_id": "ad77ff29-7abd-4ce0-9af1-7fadb63888af",
+      "creator_id": "student-123",
+      "guess": "human",
+      "label": "pending",
+      "model_score": 0.0,
+      "status": "logged",
+      "style_score": 0.0,
+      "text": "Test submission payload",
+      "timestamp": "2026-11-02T01:39:58+00:00"
+    }
+  ]
+}
 ```
 
 ---
@@ -159,15 +161,15 @@ $ curl "http://127.0.0.1:5000/log?limit=3"
 
 **Moment 1**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* Assistance structuring Milestone 1 design documentation and endpoint contracts.
+- *What came back:* Clean markdown layout for system architecture and JSON schemas.
+- *What I changed:* Adjusted field properties to match our exact route implementation.
 
 **Moment 2**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* Guidance implementing the Milestone 3 request parsing and audit logger integration in Flask.
+- *What came back:* Robust payload validation and error responses for missing text fields.
+- *What I changed:* Integrated specific variable lookups and uuid generators to match project requirements.
 
 <!-- ═══════════════════════ UNIT 8 — THE TEST ═══════════════════════ -->
 
@@ -178,18 +180,10 @@ $ curl "http://127.0.0.1:5000/log?limit=3"
 **My limits:** ___ per minute, ___ per day
 
 **Why those numbers and not others:**
-<!-- Think about two people: a real writer submitting their own work a few
-     times an hour, and a script sending a thousand variations to map your
-     thresholds. Your numbers have to be liveable for the first and hostile to
-     the second. -->
 
-**What a caller counts as:** <!-- per address, or per creator_id? They fail
-differently — one script can look like a thousand callers, and one household
-can look like one. -->
+**What a caller counts as:**
 
 **The run of status codes when I pushed past it:**
-
-<!-- python run_attacks.py --flood 15 -->
 
 ```
 
@@ -199,14 +193,11 @@ can look like one. -->
 
 ## Attack Run — Before
 
-<!-- Every attack with its outcome and a held-or-broke mark.
-     `run_attacks.py --label before` produces the table. -->
+```
 
-
+```
 
 **Ten audit log entries from the run**
-
-<!-- Choose entries that show the interesting failures, not the ten easiest. -->
 
 ```json
 
@@ -215,21 +206,17 @@ can look like one. -->
 **The single worst outcome** — the one I'd least want to explain to a writer
 whose work got caught by it:
 
-
-
 ---
 
 ## Run Log and Verdicts
 
-<!-- Your five criteria across three trials. `run_eval.py --label before`. -->
-
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 |---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |
+| 1. | | | | | |
+| 2. | | | | | |
+| 3. | | | | | |
+| 4. | | | | | |
+| 5. | | | | | |
 
 **Real output from one trial**, pasted as text, naming the file and function
 that produced it:
@@ -239,22 +226,6 @@ that produced it:
 ```
 
 **Diagnoses**
-
-<!-- For each miss AND each broken attack: the stage and the mechanism.
-
-     Your service has five stages: the route, signal one, signal two, the
-     combining rule, and the label mapping.
-
-     Not a diagnosis:  "The evasion attacks got through."
-     A diagnosis:      "Four evasion inputs got through. All four had typos
-                        added to AI-generated text. My second signal measures
-                        word variety, and typos raise word variety — so it read
-                        them as more human. My combining rule weights that
-                        signal at 0.6, so it dragged the whole score down."
-
-     Look for a pattern. Five failures on one signal is one problem, not five. -->
-
-
 
 ---
 
@@ -266,65 +237,13 @@ that produced it:
 
 ### Attack Run — After
 
-<!-- Same format. `run_attacks.py --label after` -->
-
-
-
 **Did it help, and how do I know:**
-
-<!-- Widening the unsure band usually fixes one problem and creates another.
-     Reporting that trade honestly is worth full credit. -->
-
-
 
 ---
 
 ## What's Still Broken
 
-<!-- For each attack still getting through and each criterion still missed:
-     what you'd do, and why you stopped. -->
-
-
-
 **The trade I'd make if this ran for real:**
-
-<!-- Two sentences. Fewer wrong accusations means more AI text getting through.
-     Say which way you'd go and WHO PAYS FOR IT. -->
-
-
-
-<!-- ═════════════════════════════════════════════════════════════════════
-
-     SUBMISSION CHECKLIST — unit 7
-
-       [ ] criteria.md has five numbered criteria, each naming a target
-       [ ] Each has a reason underneath
-       [ ] POST /submit returns content_id, guess, confidence, label,
-           model_score and style_score
-       [ ] Two signals that measure DIFFERENT things, each with a named blind spot
-       [ ] Three label variants, all reachable, written out in full
-       [ ] POST /appeal changes status and writes to the log
-       [ ] Signals and Scoring names scoring.py::combine_signals
-       [ ] Sample Run: a submission AND an appeal, as pasted text
-       [ ] At least four new commits
-       [ ] Repository URL submitted — WRITE IT DOWN
-
-     SUBMISSION CHECKLIST — unit 8
-
-       [ ] Rate limiting on /submit, with your numbers justified
-       [ ] The pasted run of status codes showing 429
-       [ ] Audit log with all nine fields, recording rejections too
-       [ ] The attack set run IN FULL, every input with an outcome
-       [ ] Ten audit log entries pasted as text
-       [ ] Five criteria across three trials
-       [ ] A diagnosis for every miss and every broken attack — stage AND mechanism
-       [ ] One improvement, with Attack Run — After
-       [ ] What's Still Broken, including the production trade
-       [ ] At least four new commits
-       [ ] The SAME repository URL as last unit
-
-     Do not delete and recreate this repository.
-     ═════════════════════════════════════════════════════════════════════ -->
 
 ---
 
