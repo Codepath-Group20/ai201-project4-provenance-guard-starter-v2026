@@ -1,0 +1,6 @@
+`loss_type=None` was set in the config but it is unrecognized. Using the default loss: `ForCausalLMLoss`.
+(no text given — scoring a sample)
+
+Loading gpt2 (first run downloads ~550 MB)…
+perplexity     12.5
+model_signal   0.8864   (higher = more likely AI)

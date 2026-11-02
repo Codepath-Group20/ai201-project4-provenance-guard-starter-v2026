@@ -1,4 +1,4 @@
-# AI201 pair 4 — CPU-Only Cleaned Requirements
+# AI201 pair 4 — Cleaned requirements with CPU-only PyTorch
 
 # The web service
 flask>=3.0,<4.0
@@ -11,6 +11,10 @@ requests>=2.31,<3.0
 
 # Signal one: a language model that runs locally
 transformers>=4.44,<5.0
+
+# CPU-only PyTorch build for older/non-CUDA hardware (Sandy Bridge compatible)
+--index-url https://download.pytorch.org/whl/cpu
+torch>=2.2,<3.0
 
 # A real server for the service
 gunicorn>=21.2,<24.0

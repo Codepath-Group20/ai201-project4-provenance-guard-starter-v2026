@@ -1,0 +1,27 @@
+
+AI201 environment check
+------------------------------------------------------------
+[PASS] Python version
+         3.11.17 on Linux
+[PASS] Virtual environment
+         /home/leo/CodePath-A201/ai201-project4-provenance-guard-starter-v2026/.venv
+[PASS] Pinned packages
+         all 7 import cleanly
+[PASS] Free disk space
+         15.8 GB
+[WARN] Memory
+         3.8 GB total, 4 GB recommended. Things will run, but close other apps while the model is loaded.
+[PASS] PyTorch
+         2.15.0+cpu
+[PASS] Flask
+         flask and flask-limiter both import
+[WARN] Detector model
+         Not downloaded yet (~550 MB). Run `python detector.py` once BEFORE
+         class — downloading it during the session costs you the breakout.
+[PASS] The service
+         /ping answers — the starter works before you edit it
+------------------------------------------------------------
+7 passed, 0 failed, 2 to look at, 0 skipped
+
+You're set. See you in class.
+
