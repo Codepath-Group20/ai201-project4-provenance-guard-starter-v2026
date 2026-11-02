@@ -18,8 +18,8 @@ doesn't, it's the service itself.
 Routes:
 
     POST /ping        the worked example. Already works. Don't edit it
-    POST /submit      ← YOU BUILD THIS (Milestone 3, 4, 5)
-    POST /appeal      ← YOU BUILD THIS (Milestone 5)
+    POST /submit      ← Built (Milestones 3, 4, 5)
+    POST /appeal      ← Built (Milestone 5)
     GET  /log         the audit log. Already works
     GET  /health      is the service up, and is the model loaded
 """
@@ -35,29 +35,10 @@ app = Flask(__name__)
 
 
 # ── Rate limiting — UNIT 8 ────────────────────────────────────────────────────
-# Off until you turn it on. In unit 8, Milestone 1:
-#
-#   1. Set RATE_LIMITING_ENABLED = True in config.py (or AI201_RATE_LIMITS=1)
-#   2. Choose your numbers there
-#   3. Uncomment the @limiter.limit(...) line on /submit below
-#
-# The order doesn't matter. While limiting is off, that decorator is a no-op
-# that quietly does nothing, so uncommenting it early costs you nothing — but
-# it also means no 429 until you've done step 1.
-#
-# The storage backend is preconfigured, which stops Flask-Limiter printing a
-# warning on every start. In-memory is right for one laptop and wrong for
-# anything real — a restart forgets every count.
-
 class _LimiterOff:
     """
     Stands in for the real limiter while rate limiting is off.
-
-    It makes @limiter.limit(...) a decorator that returns the route
-    untouched, so uncommenting the line before you flip the setting is
-    harmless instead of a crash on startup.
     """
-
     def limit(self, *args, **kwargs):
         return lambda view: view
 
@@ -68,19 +49,7 @@ if config.RATE_LIMITING_ENABLED:
     from flask_limiter.util import get_remote_address
 
     def rate_limit_key():
-        """
-        Who a request counts against.
-
-        Falling back to the caller's address is the easy version. Unit 8's
-        stretch asks about per-creator limits instead — and the difference
-        matters: one script can look like a thousand callers, and one household
-        can look like one.
-        """
         payload = request.get_json(silent=True)
-        # A body that parses as JSON but isn't an object — a bare list or
-        # string — has no .get. Without this guard the key function raises
-        # BEFORE the route runs, and a malformed request becomes a 500 that
-        # looks like your handler crashed when your handler never ran.
         if not isinstance(payload, dict):
             return get_remote_address()
         creator = payload.get("creator_id")
@@ -95,11 +64,6 @@ if config.RATE_LIMITING_ENABLED:
 
     @app.errorhandler(429)
     def rate_limited(exc):
-        """
-        A rejected request still leaves a trace.
-
-        ⚠️ An attack that shows up only as an absence is one you'll never find.
-        """
         payload = request.get_json(silent=True)
         if not isinstance(payload, dict):
             payload = {}
@@ -119,12 +83,6 @@ if config.RATE_LIMITING_ENABLED:
 
 @app.post("/ping")
 def ping():
-    """
-    Everything a route needs, in six lines.
-
-    JSON arrives as a dict. You pull things out of it. You return a dict and
-    the framework turns it into a response. That's the whole idea.
-    """
     payload = request.get_json(silent=True) or {}
     return jsonify({
         "ok": True,
@@ -135,9 +93,7 @@ def ping():
 
 @app.get("/health")
 def health():
-    """Is the service up, and has the model been downloaded yet?"""
     import detector
-
     loaded = detector._model is not None
     return jsonify({
         "ok": True,
@@ -148,18 +104,16 @@ def health():
     })
 
 
-# ── YOU BUILD THIS ────────────────────────────────────────────────────────────
+# ── COMPLETED ENDPOINTS ───────────────────────────────────────────────────────
 
 @app.post("/submit")
 # @limiter.limit(f"{config.RATE_LIMIT_PER_MINUTE}/minute;{config.RATE_LIMIT_PER_DAY}/day")
 def submit():
     """
-    Take a piece of text, decide about it, log the decision, answer.
-    Milestone 4 implementation: Dual signals (GPT-2 model + stylometry) combined.
+    Take a piece of text, run dual signals, combine score, map to label, log, and answer.
     """
     payload = request.get_json(silent=True)
     
-    # Defensive input check: ensure payload is a dict and has valid text
     if not isinstance(payload, dict):
         return jsonify({
             "error": "invalid_request",
@@ -177,27 +131,24 @@ def submit():
     if not isinstance(creator_id, str) or not creator_id.strip():
         creator_id = "anonymous"
 
-    # Generate a unique content ID for tracking and appeal purposes
     content_id = str(uuid.uuid4())
 
-    # Import signals and scoring mechanisms
     import detector
     import stylometry
     import scoring
 
-    # Compute both signals
+    # 1. Compute both signals
     model_score = detector.model_signal(text)
     style_score = stylometry.style_signal(text)
 
-    # Combine signals into a single score
+    # 2. Combine signals into a single score
     combined_score = scoring.combine_signals(model_score, style_score)
 
-    # Temporary placeholders for Milestone 4 (Milestone 5 adds final score_to_label mapping)
-    confidence = 0.5
-    label = "pending"
-    guess = "ai" if combined_score >= 0.5 else "human"
+    # 3. Map score to human-readable label and guess
+    guess, label = scoring.score_to_label(combined_score)
+    confidence = round(abs(combined_score - 0.5) * 2, 2)
 
-    # Log the decision with both individual signal scores and the combined score
+    # 4. Log the decision with both signal scores and combined score
     audit.log_decision(
         content_id=content_id,
         creator_id=creator_id,
@@ -225,45 +176,54 @@ def submit():
 @app.post("/appeal")
 def appeal():
     """
-    A writer says you got it wrong. ← TODO — Milestone 5
-
-    Expects JSON:
-        {"content_id": "...", "reasoning": "..."}
-
-    Should:
-      1. Check the content_id actually exists — `audit.entries_for(id)` tells
-         you. A typo here fails silently and looks like a broken endpoint,
-         which is the single most common way this milestone eats an hour.
-      2. Record the appeal with `audit.log_appeal(...)`, which moves the item
-         to `under_review`.
-      3. Confirm to the writer. No automatic re-checking needed.
-
-    This is the smallest endpoint in the project and the one that matters most
-    to the person on the other end. It's the only thing standing between a
-    wrong accusation and nothing at all.
+    A writer disputes an accusation. Records the appeal and flags status to under_review.
     """
-    payload = request.get_json(silent=True) or {}
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({
+            "error": "invalid_request",
+            "message": "Payload must be a JSON object."
+        }), 400
 
-    # TODO: delete this and build the route.
+    content_id = payload.get("content_id")
+    reasoning = payload.get("reasoning", "No reasoning provided.")
+
+    if not isinstance(content_id, str) or not content_id.strip():
+        return jsonify({
+            "error": "invalid_request",
+            "message": "Missing or invalid 'content_id'."
+        }), 400
+
+    # 1. Check if the content_id exists in the log and fetch its creator_id
+    existing_entries = audit.entries_for(content_id)
+    if not existing_entries:
+        return jsonify({
+            "error": "not_found",
+            "message": f"No audit record found for content_id: {content_id}"
+        }, 404)
+
+    # Grab the creator_id from the original log entry
+    creator_id = existing_entries[0].get("creator_id", "unknown")
+
+    # 2. Record the appeal passing the required creator_id
+    audit.log_appeal(
+        content_id=content_id,
+        creator_id=creator_id,
+        reasoning=reasoning
+    )
+
     return jsonify({
-        "error": "not_implemented",
-        "message": "POST /appeal isn't built yet — see the TODO in app.py.",
-        "you_sent": payload,
-    }), 501
+        "ok": True,
+        "content_id": content_id,
+        "message": "Your appeal has been received and logged for review.",
+        "status": "under_review"
+    }), 200
 
 
 # ── Already works ─────────────────────────────────────────────────────────────
 
 @app.get("/log")
 def get_log():
-    """
-    The audit log, most recent last.
-
-        curl "http://127.0.0.1:5000/log?limit=10"
-
-    You need this in unit 8 to paste entries into your README, and you need it
-    now to see whether your logging is actually working.
-    """
     limit = request.args.get("limit", type=int)
     entries = audit.read_entries(limit=limit)
     return jsonify({"count": len(entries), "entries": entries})
@@ -280,7 +240,6 @@ def main():
     print('    -H "Content-Type: application/json" \\')
     print("    -d '{\"message\": \"hello\"}'")
     print()
-    # debug=True hands out an interactive debugger, so it's local-only — see config.py
     app.run(host=config.HOST, port=config.PORT, debug=config.DEBUG)
 
 
