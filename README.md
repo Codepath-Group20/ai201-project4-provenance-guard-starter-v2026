@@ -290,5 +290,8 @@ Lowering the AI confidence label threshold increases true positive detection for
 
 # **What's Still Broken**
 
+6. **Single-Character Input Exception (MF02)**: Single-character inputs bypass initial empty text payload checks while failing downstream boundary calculations, causing an unhandled model processing exception and returning an HTTP 500 error instead of a handled 400 validation response.  
+7. **Unresolved Label Reachability (Criterion 2\)**: We did not explicitly patch label reachability code logic; its transition from MISSED to MET in the subsequent evaluation was a statistical artifact of the model's token probability distribution during evaluation runs rather than a deliberate codebase fix.
+
 **The trade I'd make if this ran for real:**  
-Lowering the AI confidence label threshold increases true positive detection for borderline AI text but slightly elevates the risk of false positives for formal human writing. In production, I would maintain conservative bounds on human classifications and rely on the appeal flow to catch edge cases.
+Fewer wrong accusations means more AI text getting through. In production, I would prioritize protecting genuine human writers from false accusations over catching every edge-case AI text, placing the burden of false accusations lower at the expense of strict detection coverage.
