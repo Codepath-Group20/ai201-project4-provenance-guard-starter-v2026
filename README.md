@@ -271,9 +271,15 @@ From `eval_engine.py::run_scenario` evaluating Criterion 4 (`c4_empty_text_400`)
 **Diagnoses**  
 All three evaluation trials produced 100% identical outcomes across all five criteria. This confirms that both the GPT-2 perplexity calculation (`detector.py`) and procedural stylometry metric generation (`stylometry.py`) are fully deterministic and stable across repeated runs.
 
-Criteria 2 and 4 were marked as MISSED in this baseline before run:  
-• Criterion 2 missed because the test text inputs mapped only to 'human' and 'unsure' tiers, leaving the 'ai' label unreached.  
-• Criterion 4 missed because empty string payloads returned HTTP 400 as required, but missing payload keys produced fallback values instead of strict validation failures.
+Stage and mechanism diagnoses for each missed criterion:
+
+**Criterion 2 (All three labels reachable):**  
+• **Stage:** Label mapping (`scoring.score_to_label`)  
+• **Mechanism:** The threshold for high-confidence AI requires a score \>= 0.70. The evaluation texts in the test set sat in the lower and middle distribution ranges (human and unsure), failing to cross the upper score boundary into the AI label tier.
+
+**Criterion 4 (Empty text returns a 400, not a 500):**  
+• **Stage:** The route (`app.py` payload validation)  
+• **Mechanism:** While explicit empty strings ("") correctly returned an HTTP 400 error, payload variants missing the "text" key altogether caused fallback defaults or unhandled dictionary lookups instead of triggering strict input validation checks.
 
 # **The Improvement**
 
@@ -285,4 +291,5 @@ Criteria 2 and 4 were marked as MISSED in this baseline before run:
 # **What's Still Broken**
 
 **The trade I'd make if this ran for real:**  
+Reducing false accusations against human writers inevitably allows sophisticated AI-generated evasion attempts to pass through unflagged. In production, I would prioritize protecting genuine human writers from false accusations over catching every edge-case AI text, placing the burden of false accusations lower at the expense of strict detection coverage.  
 **How to run this project: [RUNNING.md](http://RUNNING.md)**
