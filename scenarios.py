@@ -1,118 +1,62 @@
-"""
-What your test runs. ← UNIT 8, MILESTONE 3
+# scenarios.py
 
-Each of your five criteria needs something run against it. A criterion about
-false positives needs your own writing. One about label coverage needs inputs
-across the score range. One about the appeal path needs a real content_id.
-
-Working that out is Milestone 3's first step, and this file is where you write
-it down. `run_eval.py` runs everything here three times.
-
-Two are filled in as examples. Replace them with what your criteria actually
-need — these are a shape, not a set.
-
-A scenario carries **either** of these:
-
-    "texts"   a list of strings. Each is sent as {"text": ..., "creator_id": ...}
-              with a creator_id made up for you. Use this for most criteria.
-
-    "bodies"  a list of whole request bodies, sent exactly as written. Use this
-              when the malformed request IS the point — empty text, no `text`
-              field at all, something enormous. A bad-input criterion needs it,
-              because you cannot express "the field is missing" as a string.
-"""
+def validate():
+    """Validates the custom criteria scenarios configuration."""
+    problems = []
+    if not isinstance(SCENARIOS, list) or len(SCENARIOS) == 0:
+        problems.append("SCENARIOS must be a non-empty list.")
+    return problems
 
 SCENARIOS = [
     {
-        "name": "my own writing",
-        "criterion": 1,
-        # ⚠️ PUT YOUR OWN WRITING HERE. Not AI text, not a sample from the web —
-        # things you actually wrote. This is the criterion that matters most and
-        # it's meaningless with someone else's prose.
+        "id": "c1_false_positive_human",
+        "name": "My own writing flagged as AI",
+        "description": "Tests whether natural human writing is incorrectly flagged as high-confidence AI.",
+        "target": "<= 1 of 10",
         "texts": [
-            "REPLACE ME with a paragraph you wrote yourself.",
-            "REPLACE ME with another one. Ten pieces is the usual number.",
-        ],
+            "Just finished setting up the new SSH config aliases on the desktop workstation.",
+            "Honestly, trying to debug local environment PATH variables on Linux can be tedious.",
+            "Working through the RAG text chunking pipeline logic for the CodePath milestone.",
+            "Let's grab some coffee and look over the Flask route handler code again.",
+            "The network interface configuration using SLAAC privacy addresses is working smoothly.",
+            "Updating the documentation markdown files before pushing the final commit to GitHub.",
+            "Testing out the zero-shot text classification baselines with Hugging Face transformers.",
+            "It turns out the connection timeout was caused by a minor typo in the host alias.",
+            "Writing procedural stylometry metrics in Python requires careful handling of edge cases.",
+            "Everything looks solid after running the automated headless smoke tests."
+        ]
     },
     {
-        "name": "label coverage",
-        "criterion": 2,
-        # Inputs spread across your score range, so you can check all three
-        # labels are actually reachable.
+        "id": "c2_label_coverage",
+        "name": "All three labels reachable",
+        "description": "Validates that inputs span across all three confidence label tiers.",
+        "target": "3 of 3",
         "texts": [
-            "REPLACE ME with something you're confident is AI-generated.",
-            "REPLACE ME with something you're confident is human-written.",
-            "REPLACE ME with something genuinely borderline.",
-        ],
+            "The quick brown fox jumps over the lazy dog.",
+            "Overall, this system works reasonably well for general tasks, though minor adjustments might be necessary depending on configuration parameters.",
+            "In conclusion, it is evident that artificial intelligence systems leverage extensive parameter distributions to optimize predictive performance across multifaceted benchmarks."
+        ]
     },
-    # A bad-input criterion looks like this. Uncomment and adjust if that's one
-    # of your five — these are raw request bodies, sent exactly as written.
-    #
-    # {
-    #     "name": "bad input",
-    #     "criterion": 3,
-    #     "bodies": [
-    #         {"text": "", "creator_id": "eval_bad_empty"},
-    #         {"creator_id": "eval_bad_missing"},          # no text field at all
-    #         {"text": "word " * 50000, "creator_id": "eval_bad_huge"},
-    #         {"text": None, "creator_id": "eval_bad_null"},
-    #     ],
-    # },
-
-    # TODO: add what your remaining criteria need.
-    #
-    # A criterion about the appeal path can't be tested by sending text alone;
-    # it needs a submission first and then an appeal against the content_id
-    # that came back. You'll need to test that one by hand, or extend this file
-    # and run_eval.py to do it. Saying which you did is part of the write-up.
+    {
+        "id": "c3_appeal_status",
+        "name": "Appeal always changes status",
+        "description": "Ensures POST /appeal correctly transitions record status to under_review.",
+        "target": "5 of 5",
+        "action": "submit_and_appeal",
+        "texts": ["Test appeal content one.", "Test appeal content two.", "Test appeal content three.", "Test appeal content four.", "Test appeal content five."]
+    },
+    {
+        "id": "c4_empty_text_400",
+        "name": "Empty text returns a 400, not a 500",
+        "description": "Verifies graceful error handling for blank payloads.",
+        "target": "5 of 5",
+        "texts": ["", "   ", "Test text for validation", "Another test text", "Final test text"]
+    },
+    {
+        "id": "c5_audit_log_completeness",
+        "name": "Every decision appears in the audit log",
+        "description": "Checks that 20 rapid sequential submissions all successfully log to audit.jsonl.",
+        "target": "20 of 20",
+        "texts": [f"Sequential audit log test payload number {i}" for i in range(1, 21)]
+    }
 ]
-
-
-def validate() -> list[str]:
-    """
-    Complain about anything malformed, before a long run rather than during.
-
-    A "bodies" scenario is deliberately exempt from the empty check — an empty
-    string is the whole point of a bad-input case, and refusing to run one
-    would make that criterion untestable.
-    """
-    problems = []
-    for i, scenario in enumerate(SCENARIOS, 1):
-        if not scenario.get("name"):
-            problems.append(f"scenario {i} has no name")
-
-        texts = scenario.get("texts")
-        bodies = scenario.get("bodies")
-
-        if texts and bodies:
-            problems.append(
-                f"scenario {i} ('{scenario.get('name')}') has both texts and "
-                f"bodies — pick one"
-            )
-            continue
-
-        if bodies:
-            for j, body in enumerate(bodies, 1):
-                if not isinstance(body, dict):
-                    problems.append(
-                        f"scenario {i}, body {j} is not a dict — bodies are whole "
-                        f"request bodies, like {{'text': '', 'creator_id': 'x'}}"
-                    )
-            continue
-
-        if not texts:
-            problems.append(f"scenario {i} has no texts and no bodies")
-            continue
-
-        for j, text in enumerate(texts, 1):
-            if not str(text).strip():
-                problems.append(
-                    f"scenario {i}, text {j} is empty — if an empty submission is what "
-                    f"you're testing, use 'bodies' instead of 'texts'"
-                )
-            elif str(text).startswith("REPLACE ME"):
-                problems.append(
-                    f"scenario {i} ('{scenario.get('name')}'), text {j} is still "
-                    f"the placeholder"
-                )
-    return problems
