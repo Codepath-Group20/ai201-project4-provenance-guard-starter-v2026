@@ -1,0 +1,28 @@
+
+My own writing flagged as AI  (criterion —)
+  trial 1: human, human, human, human, human, human, human, human, human, human
+  trial 2: human, human, human, human, human, human, human, human, human, human
+  trial 3: human, human, human, human, human, human, human, human, human, human
+
+All three labels reachable  (criterion —)
+  trial 1: human, unsure, human
+  trial 2: human, unsure, human
+  trial 3: human, unsure, human
+
+Appeal always changes status  (criterion —)
+  trial 1: human, human, human, human, human
+  trial 2: human, human, human, human, human
+  trial 3: human, human, human, human, human
+
+Empty text returns a 400, not a 500  (criterion —)
+  trial 1: —, —, human, human, human
+  trial 2: —, —, human, human, human
+  trial 3: —, —, human, human, human
+
+Every decision appears in the audit log  (criterion —)
+  trial 1: human, human, human, human, human, human, human, human, human, human, human, human, human, human, human, human, human, human, human, human
+  trial 2: human, human, human, human, human, human, human, human, human, human, human, human, human, human, human, human, human, human, human, human
+  trial 3: human, human, human, human, human, human, human, human, human, human, human, human, human, human, human, human, human, human, human, human
+
+Wrote results/run_2026-11-07_1611_after.md
+Commit it. It's the evidence the test actually happened.
