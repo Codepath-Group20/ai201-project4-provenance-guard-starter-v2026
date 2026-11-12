@@ -226,6 +226,24 @@ def appeal():
         "status": "under_review"
     }), 200
 
+@app.get("/stats")
+def stats():
+    """
+    Return aggregate telemetry and submission statistics from the audit log.
+    """
+    entries = audit.read_entries()
+    total_submissions = sum(1 for e in entries if "combined_score" in e)
+    appeals_under_review = sum(1 for e in entries if e.get("status") == "under_review")
+    
+    scores = [e.get("combined_score") for e in entries if e.get("combined_score") is not None]
+    avg_score = round(sum(scores) / len(scores), 4) if scores else 0.0
+
+    return jsonify({
+        "total_audit_entries": len(entries),
+        "total_submissions": total_submissions,
+        "appeals_under_review": appeals_under_review,
+        "average_combined_score": avg_score
+    }), 200
 
 # ── Already works ─────────────────────────────────────────────────────────────
 
