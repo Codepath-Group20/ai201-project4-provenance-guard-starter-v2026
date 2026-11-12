@@ -295,3 +295,14 @@ Lowering the AI confidence label threshold increases true positive detection for
 
 **The trade I'd make if this ran for real:**  
 Fewer wrong accusations means more AI text getting through. In production, I would prioritize protecting genuine human writers from false accusations over catching every edge-case AI text, placing the burden of false accusations lower at the expense of strict detection coverage.
+
+## Capstone
+
+**System Extended:** Provenance Guard (`ai201-project4-provenance-guard-starter-v2026`)
+
+**The Shape:** Shape C — Extend one capability. We are adding a new lightweight `/stats` endpoint that aggregates historical decision metrics (total submissions evaluated, count of appeals under review, and average model vs. style confidence split) directly from the audit log, accompanied by evidence of operation.
+
+**What's Out of Scope:** 
+- We are not rebuilding the local GPT-2 inference pipeline or altering core detector weights.
+- We are not adding a multi-user authentication layer or external database backing.
+- We are not changing the frontend interface or styling.
