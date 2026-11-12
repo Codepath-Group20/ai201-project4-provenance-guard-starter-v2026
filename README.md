@@ -300,7 +300,10 @@ Fewer wrong accusations means more AI text getting through. In production, I wou
 
 **System Extended:** Provenance Guard (`ai201-project4-provenance-guard-starter-v2026`)
 
-**The Shape:** Shape C — Extend one capability. We are adding a new lightweight `/stats` endpoint that aggregates historical decision metrics (total submissions evaluated, count of appeals under review, and average model vs. style confidence split) directly from the audit log, accompanied by evidence of operation.
+**The Shape:** Shape C — Extend one capability. We added a new lightweight `/stats` endpoint that aggregates historical decision metrics, active appeals, and label distribution from the audit log.
+
+**Extension Usage:**
+- `GET /stats`: Returns JSON telemetry containing total audit entries, submission counts, active appeals under review, average combined score, and classification label breakdown (`ai`, `human`, `unsure`).
 
 **What's Out of Scope:** 
 - We are not rebuilding the local GPT-2 inference pipeline or altering core detector weights.
